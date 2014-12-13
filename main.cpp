@@ -1,4 +1,5 @@
 #include <GLUT/glut.h>
+#include <Python.h>
 
 
 void draw() {
