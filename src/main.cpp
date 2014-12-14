@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
   Py_Initialize();
   PyRun_SimpleString("print ('done and done')");
   dostuff(argc, argv);
-  PyRun_SimpleString("print ('done and done')");
+  
   Py_Finalize();
   return 0;
 }
