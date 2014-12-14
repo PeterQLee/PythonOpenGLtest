@@ -22,6 +22,7 @@ void initialize() {
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
   glOrtho(0.0, 1.0, 0.0, 1.0, -1.0, 1.0);
+  PyRun_SimpleString("print ('hey i work here too')");
 }
 void dostuff(int argc,char ** argv) {
   glutInit(&argc, argv);
@@ -35,6 +36,10 @@ void dostuff(int argc,char ** argv) {
   
 }
 int main(int argc, char** argv) {
+  Py_Initialize();
+  PyRun_SimpleString("print ('done and done')");
   dostuff(argc, argv);
+  PyRun_SimpleString("print ('done and done')");
+  Py_Finalize();
   return 0;
 }
