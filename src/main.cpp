@@ -1,6 +1,6 @@
 #ifdef __APPLE__
 #include <GLUT/glut.h>
-#include <Python.h>
+#include <Python/Python.h>
 #elif __linux__
 #include <GL/glut.h>
 #include <python3.4m/Python.h>
