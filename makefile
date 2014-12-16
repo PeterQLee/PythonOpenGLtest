@@ -14,4 +14,4 @@ else
 endif
 build:
 	echo $(BASEDIR)
-	$(CC) $(Files) $(LD_Flags) -o $(BINDIR)main.out
+	$(CC) -g $(Files) $(LD_Flags) -o $(BINDIR)main.out
