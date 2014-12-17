@@ -4,9 +4,62 @@
 #elif __linux__
 #include <GL/glut.h>
 #include <python3.4m/Python.h>
-
+#include <signal.h> //temp
 #endif
 
+GLuint *filePictures; //stores textures of current file, will delete and reset
+//when new file is loaded`
+int filePicturessize=0;
+
+float picturecoords[]={0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f,0.0f}; //will have to be dynamically changed, may make python module responsible for this
+
+void loadCurrentTextures();//will load texture of current session
+
+void drawpicture(int *RGBAData, int x, int y, int textureindex) { 
+  //note this is just a prototype
+  //in the future may move this to another file, or class system
+  //or something...
+  
+  //might need to call glEnable(GL_TEXTURE_2D)
+
+  //check if filePictures is already allocated to textureindex
+  /*
+    //Never mind, will assume it is already loaded
+  if (textureindex>=filePicturesize) {
+    filePicturessize++;
+    filePictures=(*GLuint)realloc(sizeof(GLuint)*filePicturessize);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+    glPixelStorei(GL_PACK_ALIGNMENT, 4); //not sure where to put this...
+    glGenTextures(1,&filePictures[textureindex]); //may need change
+    
+    glTexImage2D((GLenum)GL_TEXTURE_2D, 0, GL_RGBA, x, y, 0, GL_RGBA,(GLenum)GL_UNSIGNED_BYTE, (GLvoid*)RGBAData);
+     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);//clamp
+     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);//GL_NEAREST
+     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); //copied from file
+     
+     
+    //set @ index to zero
+    //createtexture
+    }  */
+    
+  //error checking for texture and stuff..
+  glBindTexture(GL_TEXTURE_2D,filePictures[textureindex]);
+  glBegin(GL_QUADS);
+  glTexCoord2f(0,1);
+  glVertex2f(picturecoords[0],picturecoords[1]);
+
+  glTexCoord2f(1,1);
+  glVertex2f(picturecoords[2],picturecoords[3]);
+
+  glTexCoord2f(1,0);
+  glVertex2f(picturecoords[4],picturecoords[5]);
+
+  glTexCoord2f(0,0);
+  glVertex2f(picturecoords[6],picturecoords[7]);
+  glEnd();
+  //Map need to be integrated within the glutDisplayFunc or be called by it
+}
 void draw() {
   //glClearColor(0.0f,0.0f,0.0f,1.0f);
   glClear(GL_COLOR_BUFFER_BIT);
@@ -49,7 +102,8 @@ int main(int argc, char** argv) {
   Py_Initialize();
   PyRun_SimpleString("print ('done and done')");
   PyRun_SimpleString("import sys");
-  PyRun_SimpleString("sys.path.append('/Users/Peter/PythonOpenGLTest/src/')");
+  //PyRun_SimpleString("sys.path.append('/Users/Peter/PythonOpenGLtest/src/')");
+  PyRun_SimpleString("sys.path.append('home/peter/PythonOpenGLtest/src/')");//linux
   PyObject *module, *modClass, *object, *args,*method,*ret ;
   module=PyImport_ImportModule("instance");
   //check loading
@@ -80,7 +134,7 @@ int main(int argc, char** argv) {
     return -1;
   }
   //error object
-  
+  Py_DECREF(modClass);
   Py_DECREF(args);
 
   method=PyObject_GetAttrString(object, "getPixmap");
@@ -98,7 +152,7 @@ int main(int argc, char** argv) {
     printf("can't args instance\n");
     return -1;
   }
- 
+  //Py_DECREF(args);
   //error check
   PyObject *pt;
   pt=PyEval_CallObject(method,args);
@@ -108,6 +162,7 @@ int main(int argc, char** argv) {
   dict=PyEval_CallObject(method,args);
   Py_DECREF(method);
   Py_DECREF(object);
+  Py_DECREF(args);
   printf("eyy\n");
   // PyArg_Parse(pt,"O",ret);
   
@@ -118,7 +173,8 @@ int main(int argc, char** argv) {
     }*/
 
   PyObject *item;
-  int *intarr, arrsize, index;
+  int *intarr;
+  int arrsize, index;
 
   arrsize=PyObject_Length(pt);
   printf("neh\n");
@@ -126,12 +182,13 @@ int main(int argc, char** argv) {
   
   for (index=0;index<arrsize;index++) {
     item=PySequence_GetItem(pt,index);
-    if (!PyInt_Check(item)) {
+    if (!PyLong_Check(item)) { //used to be PyInt
       free(intarr);
       printf("dne not int messed\n");
       return -1;
     }
-    intarr[index] = PyInt_AsLong(item);
+    intarr[index] = PyLong_AsLong(item);//As Intfor  mac
+    Py_DECREF(item);
   }
   Py_DECREF(pt);
 
@@ -139,29 +196,44 @@ int main(int argc, char** argv) {
   PyObject *key, *value;
   Py_ssize_t pos=0;
   Py_ssize_t sd=PyDict_Size(dict);
-  char *symbols=(char*)malloc(sizeof(char)*(sd+1));
-  char **cols=(char**)malloc(sizeof(char*)*(sd+1)); //Do not know if this is the format used in algorithm
-  symbols[0]='t';
+  char *symbols=(char*)malloc(sizeof(char)*(sd));
+  char **cols=(char**)malloc(sizeof(char*)*(sd)); //Do not know if this is the format used in algorithm
+  //symbols[0]='t';
   printf("%ld\n",sd);
   int c=0;
-
+  PyObject *dumb;
+  PyObject *dumb2;
   value=PyDict_Values(dict);
   key=PyDict_Keys(dict);
-  for (index=0;index<sd;index++) {
-    item=PySequence_GetItem(key,index);
-    if (!PyString_Check(item)) {
+  PyObject *item3;
+  PyObject *item2;
+  int i;
+  for (i=0;i<sd;i++) {
+    item3=PyList_GetItem(value,i); //change to PYLIst?
+    if (!PyUnicode_Check(item3)) { //PyString
 	printf("string done messed\n");
 	return -1;
     }
-    symbols[index]=PyString_AsString(item)[0];
-    item=PySequence_GetItem(value,index);
-    if (!PyString_Check(item)) {
+   
+    //symbols[index];
+    //dumb=PyUnicode_AsASCIIString(item3);//PyString_AsString(item)[0];
+    cols[i]=PyUnicode_AsUTF8(item3);//=PyByteArray_AsString(dumb);
+    Py_DECREF(item3);
+    //Py_DECREF(dumb); //segfault?
+    item2=PyList_GetItem(key,i); //changed frmo squence to list
+    if (!PyUnicode_Check(item2)) {//pystring
       printf("string done messed1\n");
       return -1;
     }
-    cols[index]=PyString_AsString(item);
+    //PyObject* dumb2;
+    symbols[i]=PyUnicode_AsUTF8(item2)[0];
+    //cols[index]=PyByteArray_AsString(dumb2);
+    //try decrefing items
+    Py_DECREF(item2);
+    //Py_DECREF(dumb2);
+    /*SUPER NOTE, HUGE MEMORY ISSUES HERE, fix*/
   }
-  Py_DECREF(key);
+  //Py_DECREF(key);
   Py_DECREF(value);
   Py_DECREF(dict);
   /*
@@ -175,12 +247,15 @@ int main(int argc, char** argv) {
     c++;
     //free(d);
     }*/
+
+  //right here!
   printf("%s\n",cols[1]);
   
-  
+  //raise(SIGSEGV);
   dostuff(argc, argv);
   free(cols);
   free(symbols); //freeing individual strings??
+  
   free(intarr);
   Py_Finalize();
   return 0;
