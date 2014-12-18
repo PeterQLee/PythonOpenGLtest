@@ -1,6 +1,6 @@
 #ifdef __APPLE__
 #include <GLUT/glut.h>
-#include <Python/Python.h>
+#include <Python.h>
 #elif __linux__
 #include <GL/glut.h>
 #include <python3.4m/Python.h>
@@ -101,9 +101,9 @@ void dostuff(int argc,char ** argv) {
 int main(int argc, char** argv) {
   Py_Initialize();
   PyRun_SimpleString("print ('done and done')");
-  PyRun_SimpleString("import sys");
+  PyRun_SimpleString("import site");
   //PyRun_SimpleString("sys.path.append('/Users/Peter/PythonOpenGLtest/src/')");
-  PyRun_SimpleString("sys.path.append('home/peter/PythonOpenGLtest/src/')");//linux
+  PyRun_SimpleString("site.addsitedir('../src/')");//linux
   PyObject *module, *modClass, *object, *args,*method,*ret ;
   module=PyImport_ImportModule("instance");
   //check loading
@@ -201,8 +201,7 @@ int main(int argc, char** argv) {
   //symbols[0]='t';
   printf("%ld\n",sd);
   int c=0;
-  PyObject *dumb;
-  PyObject *dumb2;
+  
   value=PyDict_Values(dict);
   key=PyDict_Keys(dict);
   PyObject *item3;
