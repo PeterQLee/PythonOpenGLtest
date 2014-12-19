@@ -4,20 +4,19 @@
 #elif __linux__
 #include <GL/glut.h>
 #include <python3.4m/Python.h>
-#endif
 #include <signal.h> //temp
-
+#endif
 
 GLuint *filePictures; //stores textures of current file, will delete and reset
 //when new file is loaded`
 int filePicturessize=0;
-int pictureIndex;
+int fileIndex;
 float picturecoords[]={-1.0f,1.0f,1.0f,1.0f,1.0f,-1.0f,-1.0f,-1.0f}; //will have to be dynamically changed, may make python module responsible for this
 
 PyObject *object;
-void loadCurrentTextures();//will load texture of current session unused...
-void mouseHandling(int button, int state, int x, int y);
-void drawpicture(int textureindex) { 
+void loadCurrentTextures();//will load texture of current session
+
+void drawpicture(int *RGBAData, int x, int y, int textureindex) { 
   //note this is just a prototype
   //in the future may move this to another file, or class system
   //or something...
@@ -63,10 +62,15 @@ void drawpicture(int textureindex) {
   //Map need to be integrated within the glutDisplayFunc or be called by it
 }
 void draw() {
-  
+  //glClearColor(0.0f,0.0f,0.0f,1.0f);
   glClear(GL_COLOR_BUFFER_BIT);
   //glColor3f(1.0, 1.0, 1.0);
-  drawpicture(0);
+  glBegin(GL_QUADS);
+  glColor3f(1.0f,1.0f,0.0f);
+  glVertex2f(-0.1f, 0.1f);    // x, y
+  glVertex2f( -0.2f, 0.1f);
+  glVertex2f( -0.2f,  0.1f);
+  glVertex2f(-0.1f,  -0.1f);
 
 
   //glBegin(GL_LINES);
@@ -87,72 +91,8 @@ void initialize() {
 void loadImage(int index) { //loads the texture into memory
   if (index>=filePicturessize) {
     filePicturessize++;
-    filePictures=(GLuint*)realloc(filePictures,sizeof(GLuint)*filePicturessize);//error checking..
+    filePictures=(Gluint*)realloc(filePictures,sizeof(Gluint)*filePicturessize);//error checking..
   }
-  
-  //retrieve data from python module
-  PyObject *args, *method, *data, *item, *dim;
-  args=Py_BuildValue("(i)",index);
-  method=PyObject_GetAttrString(object,"getRGBMap");
-  data=PyEval_CallObject(method,args);
-  //free up some of that precious, delicious memory
-  //Py_DECREF(args);
-  Py_DECREF(method);
-  //while we're at it, get the dimensions too
-  int x,y;
-  method=PyObject_GetAttrString(object,"getDimensions");
-  dim=PyEval_CallObject(method,args);
-  item=PySequence_GetItem(dim,0);
-  if (!PyLong_Check(item)) {
-    printf("invalid conversion of dimensionsx!");
-    raise(SIGSEGV);
-  }
-  x=PyLong_AsLong(item);
-  Py_DECREF(item);
-  item=PySequence_GetItem(dim,1);
-  if (!PyLong_Check(item)) {
-    printf("invalid conversion of dimensionsy!");
-    raise(SIGSEGV);
-  }
-  x=PyLong_AsLong(item);
-  Py_DECREF(item);
-  Py_DECREF(dim);
-  
-  //extract values from list
-  int *rgb;
-  int arrsize, i;
-
-  arrsize=PyObject_Length(data);
-  printf("neh\n");
-  rgb= (int *)malloc(sizeof(int)*arrsize);
-
-  //evaluate and extract list
-  for (i=0;i<arrsize;i++) {
-    item=PySequence_GetItem(data,i);
-    if (!PyLong_Check(item)) { //used to be PyInt
-      free(rgb);
-      printf("dne not int messed\n");
-      raise(SIGSEGV);
-    }
-    rgb[i] = PyLong_AsLong(item);//As Intfor  mac
-    Py_DECREF(item);
-  }
-  //free up
-  Py_DECREF(data);
-
-  //turn rgb data into a texture
-  glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-  glPixelStorei(GL_PACK_ALIGNMENT, 4); //not sure where to put this...
-  glGenTextures(1,&filePictures[index]); //may need change
-    
-  glTexImage2D((GLenum)GL_TEXTURE_2D, 0, GL_RGBA, x, y, 0, GL_RGBA,(GLenum)GL_UNSIGNED_BYTE, (GLvoid*)rgb);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);//clamp
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);//GL_NEAREST
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); //copied from file
-
-  //clean up arrays
-  free(rgb);
 }
     
     
@@ -163,8 +103,8 @@ void newFrame() {
   method=PyObject_GetAttrString(object,"newImage");
   PyEval_CallObject(method,args);
   filePicturessize=1; //arbitrary
-  pictureIndex=0;
-  filePictures=(GLuint*)malloc(sizeof(GLuint));
+  fileIndex=1;
+  filePictures=(Gluint*)malloc(sizeof(Gluint));
 }
 void dostuff(int argc,char ** argv) {
   glutInit(&argc, argv);
@@ -174,32 +114,16 @@ void dostuff(int argc,char ** argv) {
   glutCreateWindow("Pythontest");
   initialize();
   newFrame();
-  loadImage(0);
-  
   glutDisplayFunc(draw);
-  glutMouseFunc(mouseHandling);
   glutMainLoop();
-
+  
 }
-void mouseHandling(int button, int state, int x, int y) {
-  if (button==GLUT_LEFT_BUTTON && state==GLUT_DOWN) {
-    //send this info to python function to update current slide
-    //call mouseChange(x,y,0,0,0,0,pictureIndex)
-    PyObject *method, *args;
-    args=Py_BuildValue("(i,i,i,i,i,i,i)",x,y,0,0,0,0,pictureIndex);
-    method=PyObject_GetAttrString(object,"mouseChange");//I should probably do error checking here...
-    PyEval_CallObject(method,args);
-    //update image...
-    loadImage(pictureIndex);
-    draw();
-  }
-}
-int initializePython() {
-  Py_Initialize();
+int main(int argc, char** argv) {
+  Py_Initialize(); //note, in real project make python initialization its own function
   PyRun_SimpleString("print ('done and done')");
   PyRun_SimpleString("import site");
-
-  PyRun_SimpleString("site.addsitedir('../src/')");
+  //PyRun_SimpleString("sys.path.append('/Users/Peter/PythonOpenGLtest/src/')");
+  PyRun_SimpleString("site.addsitedir('../src/')");//linux
   PyObject *module, *modClass, *args,*method,*ret ;
   module=PyImport_ImportModule("instance");
   //check loading
@@ -229,15 +153,129 @@ int initializePython() {
     printf("can't object instance\n");
     return -1;
   }
-  return 0;
-}
-int main(int argc, char** argv) {
-  //initalizePython
-  if (initializePython()!=0) {
+  //error object
+  /*Py_DECREF(modClass);
+  Py_DECREF(args);
+
+  method=PyObject_GetAttrString(object, "getPixmap");
+  if (method==NULL) {
+    Py_DECREF(method);
+    printf("can't method instance\n");
     return -1;
   }
-  dostuff(argc, argv);
+  //error method
   
+  //Py_DECREF(object);
+  args=Py_BuildValue("()");
+  if (args==NULL) {
+    Py_DECREF(args);
+    printf("can't args instance\n");
+    return -1;
+  }
+  //Py_DECREF(args);
+  //error check
+  PyObject *pt;
+  pt=PyEval_CallObject(method,args);
+  Py_DECREF(method);
+  PyObject *dict;
+  method=PyObject_GetAttrString(object, "getColormap");
+  dict=PyEval_CallObject(method,args);
+  Py_DECREF(method);
+  Py_DECREF(object);
+  Py_DECREF(args);
+  printf("eyy\n");
+  // PyArg_Parse(pt,"O",ret);
+  
+  
+  /* if (!PySequence_Check(ret)){
+    printf("string conversion\n");
+    return -1;
+    }
+
+  PyObject *item;
+  int *intarr;
+  int arrsize, index;
+
+  arrsize=PyObject_Length(pt);
+  printf("neh\n");
+  intarr= (int *)malloc(sizeof(int)*arrsize);
+  
+  for (index=0;index<arrsize;index++) {
+    item=PySequence_GetItem(pt,index);
+    if (!PyLong_Check(item)) { //used to be PyInt
+      free(intarr);
+      printf("dne not int messed\n");
+      return -1;
+    }
+    intarr[index] = PyLong_AsLong(item);//As Intfor  mac
+    Py_DECREF(item);
+  }
+  Py_DECREF(pt);
+
+  //do the dict
+  PyObject *key, *value;
+  Py_ssize_t pos=0;
+  Py_ssize_t sd=PyDict_Size(dict);
+  char *symbols=(char*)malloc(sizeof(char)*(sd));
+  char **cols=(char**)malloc(sizeof(char*)*(sd)); //Do not know if this is the format used in algorithm
+  //symbols[0]='t';
+  printf("%ld\n",sd);
+  int c=0;
+  
+  value=PyDict_Values(dict);
+  key=PyDict_Keys(dict);
+  PyObject *item3;
+  PyObject *item2;
+  int i;
+  for (i=0;i<sd;i++) {
+    item3=PyList_GetItem(value,i); //change to PYLIst?
+    if (!PyUnicode_Check(item3)) { //PyString
+	printf("string done messed\n");
+	return -1;
+    }
+   
+    //symbols[index];
+    //dumb=PyUnicode_AsASCIIString(item3);//PyString_AsString(item)[0];
+    cols[i]=PyUnicode_AsUTF8(item3);//=PyByteArray_AsString(dumb);
+    Py_DECREF(item3);
+    //Py_DECREF(dumb); //segfault?
+    item2=PyList_GetItem(key,i); //changed frmo squence to list
+    if (!PyUnicode_Check(item2)) {//pystring
+      printf("string done messed1\n");
+      return -1;
+    }
+    //PyObject* dumb2;
+    symbols[i]=PyUnicode_AsUTF8(item2)[0];
+    //cols[index]=PyByteArray_AsString(dumb2);
+    //try decrefing items
+    Py_DECREF(item2);
+    //Py_DECREF(dumb2);
+    /*SUPER NOTE, HUGE MEMORY ISSUES HERE, fix
+  }
+  //Py_DECREF(key);
+  Py_DECREF(value);
+  Py_DECREF(dict);
+  /*
+  while (PyDict_Next(dict,&pos,&key,&value)) { //memory leak?
+    char *d=PyString_AsString(key);
+    symbols[pos]=d[0];
+   
+    d=PyString_AsString(value);
+    cols[pos]=d;
+    printf("%s %ld\n",cols[pos],pos);
+    c++;
+    //free(d);
+    }
+
+  //right here!
+  printf("%s\n",cols[1]);*/
+  
+  //raise(SIGSEGV);
+  dostuff(argc, argv);
+  //free(cols);
+  //free(symbols); //freeing individual strings??
+  
+  //(intarr);
   Py_Finalize();
   return 0;
 }
