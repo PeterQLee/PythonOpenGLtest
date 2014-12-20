@@ -12,7 +12,7 @@ GLuint *filePictures; //stores textures of current file, will delete and reset
 //when new file is loaded`
 int filePicturessize=0;
 int pictureIndex;
-float picturecoords[]={-1.0f,1.0f,1.0f,1.0f,1.0f,-1.0f,-1.0f,-1.0f}; //will have to be dynamically changed, may make python module responsible for this
+float picturecoords[]={-1.0f,-1.0f,1.0f,-1.0f,1.0f,1.0f,-1.0f,1.0f};//-150.0f,-150.0f,150.0f,-150.0f,150.0f,150.0f,-150.0f,150.0f};//-150.0f,150.0f,150.0f,150.0f,150.0f,-150.0f,-150.0f,-150.0f}; //will have to be dynamically changed, may make python module responsible for this
 
 PyObject *object;
 void loadCurrentTextures();//will load texture of current session unused...
@@ -20,33 +20,35 @@ void mouseHandling(int button, int state, int x, int y);
 void drawpicture(int textureindex) { 
   //note this is just a prototype
   //in the future may move this to another file, or class system
-  //or something...
-  
-  //might need to call glEnable(GL_TEXTURE_2D)
-
-  //check if filePicres is already allocated to textureindex
-  /*
-    //Never mind, will assume it is already loaded
-  if (textureindex>=filePicturesize) {
-    filePicturessize++;
-    filePictures=(*GLuint)realloc(sizeof(GLuint)*filePicturessize);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-    glPixelStorei(GL_PACK_ALIGNMENT, 4); //not sure where to put this...
-    glGenTextures(1,&filePictures[textureindex]); //may need change
-    
-    glTexImage2D((GLenum)GL_TEXTURE_2D, 0, GL_RGBA, x, y, 0, GL_RGBA,(GLenum)GL_UNSIGNED_BYTE, (GLvoid*)RGBAData);
-     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);//clamp
-     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);//GL_NEAREST
-     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); //copied from file
-     
-     
-    //set @ index to zero
-    //createtexture
-    }  */
-    
+  //or something...  
   //error checking for texture and stuff..
+  glEnable(GL_TEXTURE_2D);
   glBindTexture(GL_TEXTURE_2D,filePictures[textureindex]);
+  glBegin(GL_QUADS);
+  glTexCoord2f(0,1); //--,+-,++,-+
+  glVertex2f(picturecoords[0],picturecoords[1]);
+
+  glTexCoord2f(1,1);
+  glVertex2f(picturecoords[2],picturecoords[3]);
+
+  glTexCoord2f(1,0);
+  glVertex2f(picturecoords[4],picturecoords[5]);
+
+  glTexCoord2f(0,0);
+  glVertex2f(picturecoords[6],picturecoords[7]);
+  glEnd();
+  //Map need to be integrated within the glutDisplayFunc or be called by it
+  glDisable(GL_TEXTURE_2D);
+}
+void draw() {
+  
+  glClear(GL_COLOR_BUFFER_BIT);
+  glDisable(GL_DEPTH_TEST);
+  //glColor3f(1.0, 1.0, 1.0);
+  //drawpicture(0);
+  
+  glEnable(GL_TEXTURE_2D);
+  glBindTexture(GL_TEXTURE_2D,filePictures[0]);
   glBegin(GL_QUADS);
   glTexCoord2f(0,1);
   glVertex2f(picturecoords[0],picturecoords[1]);
@@ -61,27 +63,12 @@ void drawpicture(int textureindex) {
   glVertex2f(picturecoords[6],picturecoords[7]);
   glEnd();
   //Map need to be integrated within the glutDisplayFunc or be called by it
-}
-void draw() {
-  
-  glClear(GL_COLOR_BUFFER_BIT);
-  //glColor3f(1.0, 1.0, 1.0);
-  drawpicture(0);
-
-
-  //glBegin(GL_LINES);
-  //glVertex3f(0.25, 0.25, 0.0);
-  //glVertex3f(0.75, 0.75, 0.0);
-  
-  glEnd();
+  glDisable(GL_TEXTURE_2D);
   glFlush();
 }
 
 void initialize() {
-  glClearColor(0.0, 0.0, 0.0, 0.0);
-  //glMatrixMode(GL_PROJECTION);
-  //glLoadIdentity();
-  //gluOrtho2D(-1.0, 1.0, -1.0, 1.0);
+  glClearColor(1.00f,0.0f,1.0f,0.0f);
   PyRun_SimpleString("print ('hey i work here too')");
 }
 void loadImage(int index) { //loads the texture into memory
@@ -114,7 +101,7 @@ void loadImage(int index) { //loads the texture into memory
     printf("invalid conversion of dimensionsy!");
     raise(SIGSEGV);
   }
-  x=PyLong_AsLong(item);
+  y=PyLong_AsLong(item);
   Py_DECREF(item);
   Py_DECREF(dim);
   
@@ -139,18 +126,23 @@ void loadImage(int index) { //loads the texture into memory
   }
   //free up
   Py_DECREF(data);
-
+  printf("%d %d %d %d %d %d %d %d\n",rgb[0],rgb[1],rgb[2],rgb[3],rgb[4],rgb[5],x,y);
   //turn rgb data into a texture
-  glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-  glPixelStorei(GL_PACK_ALIGNMENT, 4); //not sure where to put this...
+  //not sure where to put this...
+   glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+  glPixelStorei(GL_PACK_ALIGNMENT, 4); 
   glGenTextures(1,&filePictures[index]); //may need change
-    
-  glTexImage2D((GLenum)GL_TEXTURE_2D, 0, GL_RGBA, x, y, 0, GL_RGBA,(GLenum)GL_UNSIGNED_BYTE, (GLvoid*)rgb);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);//clamp
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  glBindTexture(GL_TEXTURE_2D,filePictures[index]);
+ 
+  //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
+  //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+  //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);//clamp
+  //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);//GL_NEAREST
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); //copied from file
-
+  glTexImage2D((GLenum)GL_TEXTURE_2D, 0, GL_RGBA, x, y, 0, GL_RGBA,(GLenum)GL_UNSIGNED_BYTE,(GLvoid*) rgb);
+  glFlush();
+  //glGenerateMipmap(GL_TEXTURE_2D);
   //clean up arrays
   free(rgb);
 }
@@ -168,16 +160,20 @@ void newFrame() {
 }
 void dostuff(int argc,char ** argv) {
   glutInit(&argc, argv);
-  //glutInitDisplayMode(GLUT_DOUBLE);
+ 
   glutInitWindowSize(300, 300);
   glutInitWindowPosition(150, 150);
   glutCreateWindow("Pythontest");
+  glutInitDisplayMode(GLUT_DOUBLE);
+  glutMouseFunc(mouseHandling);
+  glutDisplayFunc(draw);
+ 
   initialize();
   newFrame();
   loadImage(0);
   
-  glutDisplayFunc(draw);
-  glutMouseFunc(mouseHandling);
+ 
+  //
   glutMainLoop();
 
 }
