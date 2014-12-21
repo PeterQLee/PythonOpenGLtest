@@ -12,11 +12,13 @@ GLuint *filePictures; //stores textures of current file, will delete and reset
 //when new file is loaded`
 int filePicturessize=0;
 int pictureIndex;
-float picturecoords[]={-1.0f,-1.0f,1.0f,-1.0f,1.0f,1.0f,-1.0f,1.0f};//-150.0f,-150.0f,150.0f,-150.0f,150.0f,150.0f,-150.0f,150.0f};//-150.0f,150.0f,150.0f,150.0f,150.0f,-150.0f,-150.0f,-150.0f}; //will have to be dynamically changed, may make python module responsible for this
+float picturecoords[]={-16.0f,-16.0f,16.0f,-16.0f,16.0f,16.0f,-16.0f,16.0f};
+//-150.0f,-150.0f,150.0f,-150.0f,150.0f,150.0f,-150.0f,150.0f};//-150.0f,150.0f,150.0f,150.0f,150.0f,-150.0f,-150.0f,-150.0f}; //will have to be dynamically changed, may make python module responsible for this
 
 PyObject *object;
 void loadCurrentTextures();//will load texture of current session unused...
 void mouseHandling(int button, int state, int x, int y);
+void reshape(GLsizei width, GLsizei height);
 void drawpicture(int textureindex) { 
   //note this is just a prototype
   //in the future may move this to another file, or class system
@@ -106,12 +108,12 @@ void loadImage(int index) { //loads the texture into memory
   Py_DECREF(dim);
   
   //extract values from list
-  int *rgb;
+  unsigned char *rgb;
   int arrsize, i;
 
   arrsize=PyObject_Length(data);
   printf("neh\n");
-  rgb= (int *)malloc(sizeof(int)*arrsize);
+  rgb= (unsigned char *)malloc(sizeof(unsigned char)*arrsize);
 
   //evaluate and extract list
   for (i=0;i<arrsize;i++) {
@@ -127,21 +129,34 @@ void loadImage(int index) { //loads the texture into memory
   //free up
   Py_DECREF(data);
   printf("%d %d %d %d %d %d %d %d\n",rgb[0],rgb[1],rgb[2],rgb[3],rgb[4],rgb[5],x,y);
+  /*for (i=0;i<x*y;i++) {
+    printf("%d ",rgb[i]);
+    }*/
   //turn rgb data into a texture
   //not sure where to put this...
-   glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+  /*int pixels[] = {1,0,255,  255,255,0,
+    255,0,255,  255,255,0};*/
+     /*    0.0f, 0.0f, 0.0f,   1.0f, 1.0f, 1.0f,
+	   1.0f, 1.0f, 1.0f,   0.0f, 0.0f, 0.0f*/
+  glPixelStorei(GL_UNPACK_ALIGNMENT,4);
   glPixelStorei(GL_PACK_ALIGNMENT, 4); 
-  glGenTextures(1,&filePictures[index]); //may need change
+  glGenTextures(1,&filePictures[index]); //may need change//&[index]
   glBindTexture(GL_TEXTURE_2D,filePictures[index]);
- 
+  glTexImage2D((GLenum)GL_TEXTURE_2D, 0,GL_RGB , x, y, 0, GL_RGB ,(GLenum)GL_UNSIGNED_BYTE, (GLvoid*)rgb);
+  //glTexEnvi( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE,GL_MODULATE );
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);//clamp
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);//GL_NEAREST
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  
+//GL_UNISNGED_BYTE
+  glBindTexture(GL_TEXTURE_2D,0);
+  //glTexImage2D((GLenum)GL_TEXTURE_2D, 0, GL_RGB , 2, 2, 0, GL_RGB , GL_FLOAT,(GLvoid*) pixels);
   //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
   //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
-  //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);//clamp
-  //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);//GL_NEAREST
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); //copied from file
-  glTexImage2D((GLenum)GL_TEXTURE_2D, 0, GL_RGBA, x, y, 0, GL_RGBA,(GLenum)GL_UNSIGNED_BYTE,(GLvoid*) rgb);
-  glFlush();
+ //copied from file
+ 
+  
   //glGenerateMipmap(GL_TEXTURE_2D);
   //clean up arrays
   free(rgb);
@@ -160,16 +175,17 @@ void newFrame() {
 }
 void dostuff(int argc,char ** argv) {
   glutInit(&argc, argv);
- 
-  glutInitWindowSize(300, 300);
   glutInitWindowPosition(150, 150);
+  glutInitWindowSize(300, 300);
+  
   glutCreateWindow("Pythontest");
   glutInitDisplayMode(GLUT_DOUBLE);
   glutMouseFunc(mouseHandling);
   glutDisplayFunc(draw);
- 
+   glutReshapeFunc(reshape);
+ newFrame();
   initialize();
-  newFrame();
+  
   loadImage(0);
   
  
@@ -189,6 +205,20 @@ void mouseHandling(int button, int state, int x, int y) {
     loadImage(pictureIndex);
     draw();
   }
+}
+void reshape(GLsizei width, GLsizei height) {  // GLsizei for non-negative integer
+   // Compute aspect ratio of the new window
+   if (height == 0) height = 1;                // To prevent divide by 0
+   GLfloat aspect = (GLfloat)width / (GLfloat)height;
+ 
+   // Set the viewport to cover the new window
+   glViewport(0, 0, width, height);
+ 
+   // Set the aspect ratio of the clipping area to match the viewport
+   glMatrixMode(GL_PROJECTION);  // To operate on the Projection matrix
+   glLoadIdentity();
+   gluOrtho2D(-16.0 , 16.0 , -16.0, 16.0);
+  
 }
 int initializePython() {
   Py_Initialize();

@@ -22,7 +22,7 @@ class instance:
         self.height.append(sizey)
         self.width.append(sizex)
         self.colorsize.append(1)
-        self.colormap[chr(self.curcharid[n])]=tools.converthex("#FFFFFF")
+        self.colormap[chr(self.curcharid[n])]=tools.converthex("#00FFFF")
         self.lettermap.append(chr(self.curcharid[n])*self.width[n]*self.height[n]*self.colorsize[n])
         
         
@@ -33,24 +33,23 @@ class instance:
         h=self.height[index]
         w=self.width[index]
         cs=self.colorsize[index]
-        RGBA=[0]*h*w*4
+        offset=3
+        RGBA=[0]*h*w*offset
         for y in range(h):
             for x in range(w):
-                start=y*w*4+int(x/cs)*4
+                start=y*w*offset+int(x/cs)*offset
                 letterpos=y*w*cs+x*cs
-                RGBA[start:start+4]=self.colormap[self.lettermap[index][letterpos:letterpos+cs]] #check this
+                RGBA[start:start+offset]=self.colormap[self.lettermap[index][letterpos:letterpos+cs]] #check this
         return RGBA       
     def mouseChange(self,x,y,R,G,B,A,index):#not sure about alpha
         alright=False #flag for if colour is already mapped
         for i in self.colormap.keys():
-            if self.colormap[i]==[R,G,B,A]:
+            if self.colormap[i]==[R,G,B]:#,A]:
                 alright=True
         if not alright:
             self.curcharid[index]+=1
-            self.colormap[chr(self.curcharid[index])]=[R,G,B,A]
+            self.colormap[chr(self.curcharid[index])]=[R,G,B]#,A]
         ind=x*self.colorsize[index]+y*self.width[index]*self.colorsize[index]
         self.lettermap[index]=self.lettermap[index][:ind]+chr(self.curcharid[index])+self.lettermap[index][ind+self.colorsize[index]:]
-        for j in self.lettermap[index]:
-            if (ord(j)==2):
-                print (ord(j))
+        
             
