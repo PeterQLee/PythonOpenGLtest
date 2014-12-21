@@ -12,12 +12,17 @@ GLuint *filePictures; //stores textures of current file, will delete and reset
 //when new file is loaded`
 int filePicturessize=0;
 int pictureIndex;
+int curPictureWidth;
+int curPictureHeight;
+int colorSize=3; //for now, if no alpha
+
 float picturecoords[]={-16.0f,-16.0f,16.0f,-16.0f,16.0f,16.0f,-16.0f,16.0f};
 //-150.0f,-150.0f,150.0f,-150.0f,150.0f,150.0f,-150.0f,150.0f};//-150.0f,150.0f,150.0f,150.0f,150.0f,-150.0f,-150.0f,-150.0f}; //will have to be dynamically changed, may make python module responsible for this
-
+unsigned char *rgb;
 PyObject *object;
 void loadCurrentTextures();//will load texture of current session unused...
-void mouseHandling(int button, int state, int x, int y);
+void mouseClick(int button, int state, int x, int y);
+void mouseMotion(int x, int y);
 void reshape(GLsizei width, GLsizei height);
 void drawpicture(int textureindex) { 
   //note this is just a prototype
@@ -73,7 +78,24 @@ void initialize() {
   glClearColor(1.00f,0.0f,1.0f,0.0f);
   PyRun_SimpleString("print ('hey i work here too')");
 }
+void regenTexture() {
+  glPixelStorei(GL_UNPACK_ALIGNMENT,4);
+  glPixelStorei(GL_PACK_ALIGNMENT, 4); 
+  glGenTextures(1,&filePictures[pictureIndex]); //may need change//&[index]
+  glBindTexture(GL_TEXTURE_2D,filePictures[pictureIndex]);
+  glTexImage2D((GLenum)GL_TEXTURE_2D, 0,GL_RGB , curPictureWidth, curPictureHeight, 0, GL_RGB ,(GLenum)GL_UNSIGNED_BYTE, (GLvoid*)rgb);
+  //glTexEnvi( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE,GL_MODULATE );
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);//clamp
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);//GL_NEAREST
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  
+//GL_UNISNGED_BYTE
+  glBindTexture(GL_TEXTURE_2D,0);
+}
 void loadImage(int index) { //loads the texture into memory
+  //when getting a new image, make sure you free rgb!
+  
   if (index>=filePicturessize) {
     filePicturessize++;
     filePictures=(GLuint*)realloc(filePictures,sizeof(GLuint)*filePicturessize);//error checking..
@@ -108,7 +130,7 @@ void loadImage(int index) { //loads the texture into memory
   Py_DECREF(dim);
   
   //extract values from list
-  unsigned char *rgb;
+  //unsigned char *rgb;
   int arrsize, i;
 
   arrsize=PyObject_Length(data);
@@ -156,10 +178,14 @@ void loadImage(int index) { //loads the texture into memory
   //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
  //copied from file
  
-  
+
+  //set width and height of picture
+  curPictureWidth=x;
+  curPictureHeight=y;
+
   //glGenerateMipmap(GL_TEXTURE_2D);
   //clean up arrays
-  free(rgb);
+  //free(rgb);
 }
     
     
@@ -180,7 +206,8 @@ void dostuff(int argc,char ** argv) {
   
   glutCreateWindow("Pythontest");
   glutInitDisplayMode(GLUT_DOUBLE);
-  glutMouseFunc(mouseHandling);
+  glutMouseFunc(mouseClick);
+  glutMotionFunc(mouseMotion);
   glutDisplayFunc(draw);
    glutReshapeFunc(reshape);
  newFrame();
@@ -193,16 +220,38 @@ void dostuff(int argc,char ** argv) {
   glutMainLoop();
 
 }
-void mouseHandling(int button, int state, int x, int y) {
+bool mouseDownFlag=false;
+void mouseClick(int button, int state, int x, int y) {
   if (button==GLUT_LEFT_BUTTON && state==GLUT_DOWN) {
+    mouseDownFlag=true;
+  }
+  else if (button==GLUT_LEFT_BUTTON && state==GLUT_UP) {
+    mouseDownFlag=false;
+  }
+}
+void mouseMotion(int x, int y) {
+  //obviously this is really choppy due to low refresh rate, will implement a draw line function later
+  if (x<curPictureWidth && y<curPictureHeight && x>0 && y>0 && mouseDownFlag) {
+    //will need to change depending on scaling..
+
+
     //send this info to python function to update current slide
     //call mouseChange(x,y,0,0,0,0,pictureIndex)
     PyObject *method, *args;
     args=Py_BuildValue("(i,i,i,i,i,i,i)",x,y,0,0,0,0,pictureIndex);
     method=PyObject_GetAttrString(object,"mouseChange");//I should probably do error checking here...
     PyEval_CallObject(method,args);
+
+    //do error checking and stuff...
+    //will need to scale x and y values according to how stretched
+    rgb[y*curPictureWidth*colorSize+x*colorSize]=0;
+    rgb[y*curPictureWidth*colorSize+x*colorSize+1]=0;
+    rgb[y*curPictureWidth*colorSize+x*colorSize+2]=0;
+    //rgb[y][x+3]=0;
+     
     //update image...
-    loadImage(pictureIndex);
+    //loadImage(pictureIndex);
+    regenTexture();
     draw();
   }
 }
