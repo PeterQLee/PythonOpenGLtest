@@ -10,14 +10,20 @@ int updateImage(PyObject *object,int index, unsigned char *rgb,int x,int y,int c
     item=PyLong_FromLong(rgb[i]);
     PyTuple_SetItem(list,i,item);
     }
+  Py_DECREF(item);
   args=Py_BuildValue("(i,O)",index,list);
+  Py_DECREF(list);
   func=PyObject_GetAttrString(object,"updateImage");
   PyEval_CallObject(func,args);
+   Py_DECREF(func);
+   PyObject_Print(args,stdout,Py_PRINT_RAW);a
+    if (args==NULL) printf("yyyy?\n");
+   Py_DECREF(args);
+  
   printf("way?\n");
-  Py_DECREF(args);
-  Py_DECREF(func);
-  Py_DECREF(list);
-  Py_DECREF(item);
+  
+  
+  
   return 0;
 }
 int saveStack(PyObject *object) {

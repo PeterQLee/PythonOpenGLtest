@@ -10,7 +10,8 @@
 
 GLuint *filePictures; //stores textures of current file, will delete and reset
 //when new file is loaded`
-int filePicturessize=0;
+int filePicturessize=0; //refers to how many pictures are actually loaded
+//int totPictures; //refers to value from python
 int pictureIndex;
 int curPictureWidth;
 int curPictureHeight;
@@ -82,8 +83,8 @@ void initialize() {
 void regenTexture() {
   glPixelStorei(GL_UNPACK_ALIGNMENT,4);
   glPixelStorei(GL_PACK_ALIGNMENT, 4); 
-  glGenTextures(1,&filePictures[pictureIndex]); //may need change//&[index]
-  glBindTexture(GL_TEXTURE_2D,filePictures[pictureIndex]);
+  glGenTextures(1,&filePictures[0]);//pictureIndex]); //may need change//&[index]
+  glBindTexture(GL_TEXTURE_2D,filePictures[0]);//pictureIndex]);
   glTexImage2D((GLenum)GL_TEXTURE_2D, 0,GL_RGB , curPictureWidth, curPictureHeight, 0, GL_RGB ,(GLenum)GL_UNSIGNED_BYTE, (GLvoid*)rgb);
   //glTexEnvi( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE,GL_MODULATE );
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);//clamp
@@ -97,10 +98,10 @@ void regenTexture() {
 void loadImage(int index) { //loads the texture into memory
   //when getting a new image, make sure you free rgb!
   
-  if (index>=filePicturessize) {
+  /*if (index>=filePicturessize) {
     filePicturessize++;
     filePictures=(GLuint*)realloc(filePictures,sizeof(GLuint)*filePicturessize);//error checking..
-  }
+    }*/
   
   //retrieve data from python module
   PyObject *args, *method, *data, *item, *dim;
@@ -129,14 +130,15 @@ void loadImage(int index) { //loads the texture into memory
   y=PyLong_AsLong(item);
   Py_DECREF(item);
   Py_DECREF(dim);
-  
+  printf("y %d\n",y);
   //extract values from list
   //unsigned char *rgb;
   int arrsize, i;
 
   arrsize=PyObject_Length(data);
   printf("neh\n");
-  rgb= (unsigned char *)malloc(sizeof(unsigned char)*arrsize);
+  ///yeah yeah, there's a safer way to do this... we'll deal with it when the time comes
+  rgb= (unsigned char *)realloc(rgb,sizeof(unsigned char)*arrsize);
 
   //evaluate and extract list
   for (i=0;i<arrsize;i++) {
@@ -154,8 +156,8 @@ void loadImage(int index) { //loads the texture into memory
   printf("%d %d %d %d %d %d %d %d\n",rgb[0],rgb[1],rgb[2],rgb[3],rgb[4],rgb[5],x,y);
   glPixelStorei(GL_UNPACK_ALIGNMENT,4);
   glPixelStorei(GL_PACK_ALIGNMENT, 4); 
-  glGenTextures(1,&filePictures[index]); //may need change//&[index]
-  glBindTexture(GL_TEXTURE_2D,filePictures[index]);
+  glGenTextures(1,&filePictures[0]);//index]); //may need change//&[index]
+  glBindTexture(GL_TEXTURE_2D,filePictures[0]);//index]);
   glTexImage2D((GLenum)GL_TEXTURE_2D, 0,GL_RGB , x, y, 0, GL_RGB ,(GLenum)GL_UNSIGNED_BYTE, (GLvoid*)rgb);
   //glTexEnvi( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE,GL_MODULATE );
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);//clamp
@@ -177,10 +179,10 @@ void clearImage() {//may need error checking
 
 void newFrame() {
   PyObject *args, *method;
-  args=Py_BuildValue("(i,i)",300,300);
+  args=Py_BuildValue("(i,i)",100,100);
   method=PyObject_GetAttrString(object,"newImage");
   PyEval_CallObject(method,args);
-  filePicturessize=1; //arbitrary
+  // filePicturessize=1; //arbitrary
   pictureIndex=0;
   filePictures=(GLuint*)malloc(sizeof(GLuint));
 }
@@ -188,7 +190,8 @@ void dostuff(int argc,char ** argv) {
   glutInit(&argc, argv);
   glutInitWindowPosition(150, 150);
   glutInitWindowSize(300, 300);
-  
+  rgb=(unsigned char *)malloc(sizeof(unsigned char));
+    
   glutCreateWindow("Pythontest");
   glutInitDisplayMode(GLUT_DOUBLE);
   glutMouseFunc(mouseClick);
@@ -196,6 +199,7 @@ void dostuff(int argc,char ** argv) {
   glutKeyboardFunc(fKeyboard);
   glutDisplayFunc(draw);
   glutReshapeFunc(reshape);
+  
   newFrame();
   initialize();
   
@@ -245,12 +249,29 @@ void killfunction() {
   //free(rgb);
   printf("mofo\n");
   saveStack(object);
-  
+  //exit(0);
     
+}
+void changeStack(int pos) {
+  printf("s%d\n",filePicturessize);
+  if (pictureIndex+pos>=0 && pictureIndex+pos<filePicturessize) {
+    printf("wrok?\n");
+     updateImage(object,pictureIndex,rgb,curPictureWidth,curPictureHeight,colorSize);
+     //free(rgb);
+     pictureIndex+=pos;
+     loadImage(pictureIndex);
+     draw();
+  }
 }
 void fKeyboard(unsigned char key, int x, int y) {
   if (key=='q') {
     killfunction();
+  }
+  if (key=='d') {
+    changeStack(1);
+  }
+  if (key=='a') {
+    changeStack(-1);
   }
 }
 
@@ -304,6 +325,19 @@ int initializePython() {
     printf("can't object instance\n");
     return -1;
   }
+  Py_DECREF(modClass);
+  Py_DECREF(args);
+  args=Py_BuildValue("");
+  ret=PyObject_GetAttrString(object,"numImage");
+  Py_DECREF(args);
+  if (!PyLong_Check(ret)) {
+     Py_DECREF(object);
+    printf("nosize\n");
+    return -1;
+  }
+  filePicturessize=PyLong_AsLong(ret);
+  printf("size %d\n",filePicturessize);
+  Py_DECREF(ret);
   return 0;
 }
 
