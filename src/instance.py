@@ -110,7 +110,7 @@ class instance:
         
         while True:
             #print(stage)
-            print(buffer,"stage:",stage)
+            #print(buffer,"stage:",stage)
             s=f.read(1)
             if s==":": #and (stage==0 or stage==1 or stage==3 or stage==4):
                 if stage==0:
@@ -122,7 +122,7 @@ class instance:
                     dic={}
                     high=0
                     for i in range(0,len(d)-1,4): 
-                        dic[d[i]]=[d[i+1],d[i+2],d[i+3]]
+                        dic[d[i]]=[int(d[i+1]),int(d[i+2]),int(d[i+3])]
                         high=max(high,ord(d[i])) #will need to fix for higher than 255 chars.. just the ord part
                     self.colormap=dic
                     self.curcharid=high

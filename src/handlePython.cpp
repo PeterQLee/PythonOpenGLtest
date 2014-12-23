@@ -16,7 +16,7 @@ int updateImage(PyObject *object,int index, unsigned char *rgb,int x,int y,int c
   func=PyObject_GetAttrString(object,"updateImage");
   PyEval_CallObject(func,args);
    Py_DECREF(func);
-   PyObject_Print(args,stdout,Py_PRINT_RAW);a
+   PyObject_Print(args,stdout,Py_PRINT_RAW);
     if (args==NULL) printf("yyyy?\n");
    Py_DECREF(args);
   
