@@ -6,7 +6,7 @@
 #include <python3.4m/Python.h>
 #endif
 #include <signal.h> //temp
-
+#include "handlePython.h"
 
 GLuint *filePictures; //stores textures of current file, will delete and reset
 //when new file is loaded`
@@ -24,6 +24,7 @@ void loadCurrentTextures();//will load texture of current session unused...
 void mouseClick(int button, int state, int x, int y);
 void mouseMotion(int x, int y);
 void reshape(GLsizei width, GLsizei height);
+void fKeyboard(unsigned char key, int x, int y);
 void drawpicture(int textureindex) { 
   //note this is just a prototype
   //in the future may move this to another file, or class system
@@ -107,7 +108,7 @@ void loadImage(int index) { //loads the texture into memory
   method=PyObject_GetAttrString(object,"getRGBMap");
   data=PyEval_CallObject(method,args);
   //free up some of that precious, delicious memory
-  //Py_DECREF(args);
+  
   Py_DECREF(method);
   //while we're at it, get the dimensions too
   int x,y;
@@ -151,15 +152,6 @@ void loadImage(int index) { //loads the texture into memory
   //free up
   Py_DECREF(data);
   printf("%d %d %d %d %d %d %d %d\n",rgb[0],rgb[1],rgb[2],rgb[3],rgb[4],rgb[5],x,y);
-  /*for (i=0;i<x*y;i++) {
-    printf("%d ",rgb[i]);
-    }*/
-  //turn rgb data into a texture
-  //not sure where to put this...
-  /*int pixels[] = {1,0,255,  255,255,0,
-    255,0,255,  255,255,0};*/
-     /*    0.0f, 0.0f, 0.0f,   1.0f, 1.0f, 1.0f,
-	   1.0f, 1.0f, 1.0f,   0.0f, 0.0f, 0.0f*/
   glPixelStorei(GL_UNPACK_ALIGNMENT,4);
   glPixelStorei(GL_PACK_ALIGNMENT, 4); 
   glGenTextures(1,&filePictures[index]); //may need change//&[index]
@@ -171,24 +163,17 @@ void loadImage(int index) { //loads the texture into memory
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);//GL_NEAREST
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
   
-//GL_UNISNGED_BYTE
   glBindTexture(GL_TEXTURE_2D,0);
-  //glTexImage2D((GLenum)GL_TEXTURE_2D, 0, GL_RGB , 2, 2, 0, GL_RGB , GL_FLOAT,(GLvoid*) pixels);
-  //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
-  //glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
- //copied from file
- 
 
   //set width and height of picture
   curPictureWidth=x;
   curPictureHeight=y;
-
-  //glGenerateMipmap(GL_TEXTURE_2D);
-  //clean up arrays
-  //free(rgb);
+  
 }
     
-    
+void clearImage() {//may need error checking
+  free(rgb);
+}
 
 void newFrame() {
   PyObject *args, *method;
@@ -208,9 +193,10 @@ void dostuff(int argc,char ** argv) {
   glutInitDisplayMode(GLUT_DOUBLE);
   glutMouseFunc(mouseClick);
   glutMotionFunc(mouseMotion);
+  glutKeyboardFunc(fKeyboard);
   glutDisplayFunc(draw);
-   glutReshapeFunc(reshape);
- newFrame();
+  glutReshapeFunc(reshape);
+  newFrame();
   initialize();
   
   loadImage(0);
@@ -234,15 +220,13 @@ void mouseMotion(int x, int y) {
   if (x<curPictureWidth && y<curPictureHeight && x>0 && y>0 && mouseDownFlag) {
     //will need to change depending on scaling..
 
-
-    //send this info to python function to update current slide
-    //call mouseChange(x,y,0,0,0,0,pictureIndex)
-    PyObject *method, *args;
+    //changed to image being saved at end of stack to promote speed
+    
+    /*PyObject *method, *args;
     args=Py_BuildValue("(i,i,i,i,i,i,i)",x,y,0,0,0,0,pictureIndex);
     method=PyObject_GetAttrString(object,"mouseChange");//I should probably do error checking here...
-    PyEval_CallObject(method,args);
+    PyEval_CallObject(method,args);*/
 
-    //do error checking and stuff...
     //will need to scale x and y values according to how stretched
     rgb[y*curPictureWidth*colorSize+x*colorSize]=0;
     rgb[y*curPictureWidth*colorSize+x*colorSize+1]=0;
@@ -255,6 +239,21 @@ void mouseMotion(int x, int y) {
     draw();
   }
 }
+
+void killfunction() {
+  updateImage(object,pictureIndex,rgb,curPictureWidth,curPictureHeight,colorSize);
+  //free(rgb);
+  printf("mofo\n");
+  saveStack(object);
+  
+    
+}
+void fKeyboard(unsigned char key, int x, int y) {
+  if (key=='q') {
+    killfunction();
+  }
+}
+
 void reshape(GLsizei width, GLsizei height) {  // GLsizei for non-negative integer
    // Compute aspect ratio of the new window
    if (height == 0) height = 1;                // To prevent divide by 0
@@ -269,6 +268,7 @@ void reshape(GLsizei width, GLsizei height) {  // GLsizei for non-negative integ
    gluOrtho2D(-16.0 , 16.0 , -16.0, 16.0);
   
 }
+
 int initializePython() {
   Py_Initialize();
   PyRun_SimpleString("print ('done and done')");
@@ -291,7 +291,7 @@ int initializePython() {
     printf("can't class instance\n");
     return -1;
   }
-  args=Py_BuildValue(" (s)","Saysay.qcard");
+  args=Py_BuildValue(" (s)","Saysay");
   if (args==NULL) {
     Py_DECREF(args);
     printf("can't args instance\n");
@@ -306,13 +306,16 @@ int initializePython() {
   }
   return 0;
 }
+
+
 int main(int argc, char** argv) {
   //initalizePython
   if (initializePython()!=0) {
     return -1;
   }
   dostuff(argc, argv);
-  
+  printf("EJECT!\n");
   Py_Finalize();
+
   return 0;
 }
