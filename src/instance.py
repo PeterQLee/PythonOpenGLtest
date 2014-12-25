@@ -10,7 +10,9 @@ class instance:
             self.height=[]
             self.width=[]
             self.colorsize=1 #linear
-            self.curcharid=1 #Char ids will be the same for file {0, 58, and 44 are forbidden values}
+            self.curcharid=[1] #Char ids will be the same for file {0, 58, and 44 are forbidden values}
+            #note curchar is opposite so ind 0 is the first digit that is changing
+            
             #wll need to make charids an array... or use moduluses...
             self.colormap={} ##in the future, map have color map be predetermined by file
             #that way file can be more compressed
@@ -40,7 +42,7 @@ class instance:
         RGBA=[0]*h*w*offset
         for y in range(h):
             for x in range(w):
-                start=y*w*offset+int(x/cs)*offset
+                start=y*w*offset+x*offset#int(x/cs)*offset
                 letterpos=y*w*cs+x*cs
                 RGBA[start:start+offset]=self.colormap[self.lettermap[index][letterpos:letterpos+cs]] #check this
         return RGBA
@@ -58,17 +60,32 @@ class instance:
             for i in self.colormap.keys():
                 if self.colormap[i]==[R,G,B]:
                     alright=True
-                    s=ord(i)
+                    
+                    #s=ord(i)
+                    s=i
                     break
             #print("what")
      
             if not alright:
-                self.curcharid+=1
-                self.colormap[chr(self.curcharid)]=[R,G,B]#
-                s=self.curcharid
+                self.curcharid[0]+=1
+                if self.curcharid[0]==44 or self.curcharid[0]==58:self.curcharid[0]+=1
+                #check if every character is 255
+                yes255=True
+                for u in self.curcharid:
+                    if u!=255:
+                        yes255=False
+                        break
+                if yes255:  #right here we are just saying when the first is 255, not when it overflows... needs work
+                    #if all curcharid==255..
+                    self.reFormatMap()
+                alm=""
+                for k in range(len(self.curcharid)-1,-1,-1):
+                    alm+=chr(self.curcharid[k]) ##check right here
+                self.colormap[alm]=[R,G,B]#
+                s=alm
             #print('k')
             #print(s)
-            sn+=chr(s)
+            sn+=s#chr(s)
             #print("may?")
         self.lettermap[index]=sn
         print("done")
@@ -121,11 +138,21 @@ class instance:
                     d=buffer.split(",")
                     dic={}
                     high=0
+                    ms=[]
                     for i in range(0,len(d)-1,4): 
                         dic[d[i]]=[int(d[i+1]),int(d[i+2]),int(d[i+3])]
-                        high=max(high,ord(d[i])) #will need to fix for higher than 255 chars.. just the ord part
+                        val=0
+                        for o in range(len(d[i])-1,-1,-1):#reverse this!
+                            val+=ord(d[i][o])*pow(255,len(d[i])-1-o)
+                        oldhigh=high
+                        high=max(high,val)
+                        if high!=oldhigh:
+                            ms=[]
+                            for r in d[i]:
+                                ms.insert(0,ord(r)) #will reverse order i think
+                            
                     self.colormap=dic
-                    self.curcharid=high
+                    self.curcharid=ms
                 if stage==3:
                     d=buffer.split(",")
                     li=[int(i) for i in d[:len(d)-1]]
@@ -145,8 +172,30 @@ class instance:
             buffer+=s
         
         return True
+
+    def reFormatMap(self):
         
+        key=self.colormap.keys()
+        newdic={}
+        repdic={}
+        for i in key:
+            newdic[chr(0)+i]=self.colormap[i]
+            repdic[i]=chr(0)+i
+        self.colormap=newdic
+        #redind thing
+        n=self.colorsize
+        self.colorsize+=1
+        self.curcharid=[chr(0)]*n+[chr(1)]#[chr(1)]+[chr(0)]*(n)
+        #reformat lettermap
+        newarr=[]
+        for i in self.lettermap:
+            dastr=""
+            for j in range(0,len(i),n):
+                dastr+=repdic[i[j:j+n]] #here
+            newarr.append(dastr)
+        self.lettermap=newarr
     #too slow
+    
     """
     def mouseChange(self,x,y,R,G,B,A,index):#not sure about alpha
         alright=False #flag for if colour is already mapped
