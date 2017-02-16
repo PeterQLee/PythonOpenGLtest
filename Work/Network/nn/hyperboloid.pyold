@@ -1,0 +1,169 @@
+import numpy as np
+from scipy.special import expit
+import matplotlib.pyplot as plt
+import random
+import vectorize_graph
+def f(x):
+    #correct output
+    return x**2
+
+def sigmoid(x,deriv=False):
+    if deriv:
+        y=sigmoid(x)
+        return y*(1-y)
+    #print (-x)
+    return expit(x)
+    #return 1/(1+np.exp(-x))
+
+def squash(x):
+    pass
+
+def over(x,y):
+    if y>x**2:
+        return 1
+    return 0
+
+np.seterr(over='raise')
+np.random.seed(7)
+
+Bdata=vectorize_graph.vectorize_graph('../graphs/')
+data=vectorize_graph.flatten(Bdata)
+x_set=data[0]
+out_set=data[1]
+
+
+training=list(zip(x_set,out_set))
+print (len(training))
+#x=np.array([[1],[2],[3],[4],[5],[6],[7]])
+#y_set=np.square(x_set)#5*x_set+3
+#y_set=y_set/np.linalg.norm(y_set)
+
+w_2=np.random.randn(6,1) #Order is (output, input) i.e. (to, from)
+w_3=np.random.random((6,6))
+w_4=np.random.random((1,6))
+biases_2=np.random.random((6,1))
+biases_3=np.random.random((6,1))
+bias4=np.random.random((1,1))
+hits=0
+
+mini_batch_size=20
+for i in range(300):
+    #input
+    random.shuffle(training)
+    mini_batches=[training[k:k+mini_batch_size]
+                  for k in range(0,len(x_set),mini_batch_size)]
+    
+    for mini_batch in mini_batches:
+        #for x_,y,z in mini_batch:
+        for x_,z in mini_batch:
+
+            x=np.array(x_)#np.array([[x_],[y]])
+            
+            #feed forward
+            
+            a_2=sigmoid(np.dot(w_2,x)+biases_2)
+
+            a_3=sigmoid(np.dot(w_3,a_2)+biases_3)
+
+            a_4=sigmoid(np.dot(w_4,a_3)+bias4)
+            
+            hits+=abs(z-a_4)
+
+            if z==0:
+                error=a_4-z/(len(mini_batch)-1)
+            else:
+                error=a_4-z
+                
+            #calculate output error
+            delta_4=(error)*sigmoid(np.dot(w_4,a_3)+bias4) #aka, delta L
+        
+            #back propagate
+            delta_3=np.dot(w_4.transpose(),delta_4)*sigmoid(np.dot(w_3,a_2)+biases_3,True)
+
+            delta_2=np.dot(w_3.transpose(),delta_3)*sigmoid(np.dot(w_2,x)+biases_2,True)
+
+            #5. Output
+            #calculate dC/dw_l,jk and dC/db_l,j
+
+            delta_nabla_4W=np.dot(delta_4,a_3.transpose()) #need to make sure right matrix is transposed!
+            delta_nabla_4B=delta_4
+            
+            delta_nabla_3W=np.dot(delta_3,a_2.transpose())
+            delta_nabla_3B=delta_3
+            
+            delta_nabla_2W=np.dot(delta_2,x.transpose())
+            delta_nabla_2B=delta_2
+            #updat weights
+            learnrate=3/len(mini_batch)
+            w_4-=delta_nabla_4W*learnrate
+            bias4-=delta_nabla_4B*learnrate
+            w_3=w_3-delta_nabla_3W*learnrate
+            biases_3-=delta_nabla_3B*learnrate
+            w_2=w_2-delta_nabla_2W*learnrate
+            biases_2-=delta_nabla_2B*learnrate
+
+        #l1_delta=error*sigmoid(a_3,True)
+        #print(l1_delta)
+        #w_2+= np.dot(l0.T,l1_delta)
+                
+    # if i%100*200==0 and i!=0:
+    #     print("Weights 2____")
+    #     print (w_2)
+    #     print(biases_2)
+    #     print("Weights 3___")
+    #     print (w_3)
+    #     print(biases_3)
+
+    #     print ("Error",hits/100/200)
+    #     hits=0
+def func(x_):
+    #x=np.array([[x_],[y]])
+    x=np.array(x_)
+    a_2=sigmoid(np.dot(w_2,x)+biases_2)
+        
+    a_3=sigmoid(np.dot(w_3,a_2)+biases_3)
+    
+    a_4=sigmoid(np.dot(w_4,a_3)+bias4)
+
+    return a_4
+
+c=0
+w=0
+G=np.vectorize(func)
+for i in Bdata:
+    #print (i[0])
+    #for j in range(Bdata[i]):
+    
+    tt=G(i[0])
+    if np.argmax(tt)==np.argmax(i[1]):
+        
+        c+=1
+
+    w+=1
+    print (i[1])
+    print(tt)
+    print (np.argmax(i[1]),np.argmax(tt))
+
+    
+        # x,z=Bdata[i][j]
+        # result=func(x)
+        # if z==1.0:
+        #     if abs(z-result[0][0])<0.1:
+        #         w+=1
+        #     c+=1
+        #     print (x,z, result[0][0])
+print ("Result is "+str(c/w))
+
+
+#space=x_set
+G=np.vectorize(func)
+y=G(x_set)#G(x_set,y_set)
+#z=over(x_set,y_set)#5*space+3
+#z=z/np.linalg.norm(z)
+#print(y)
+#z=np.square(x_set)
+#plt.plot(x_set,z,'-')
+plt.scatter(x_set,out_set,c=y,s=20)
+plt.gray()
+#plt.plot(space,y_set,'-')
+plt.show()

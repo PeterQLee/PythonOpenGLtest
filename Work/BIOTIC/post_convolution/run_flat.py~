@@ -1,0 +1,26 @@
+import csv
+import numpy as np
+
+f=np.load(sys.argv[1])
+
+coords=csv.reader(open('../Data/4secmodelcoords.csv','r'))
+
+cs=coords.__next__()
+M=np.zeros((512,512,35))
+
+conv=lambda x: (x//512,x%512)
+c=0
+suffix=sys.argv[1].split('/')[-1].split('.')[0]
+print(vals)
+while c < len(f):
+
+    cs=coords.__next__()
+    if vals[5]!=suffix:continue
+
+    sl=int(vals[4])
+    x,y=conv(int(cs[0]))
+    if len(f.shape)==1 or f.shape[1]==1:
+        M[x,y,sl]=int((1-f[c])*255) #Correction for how I processed it earlier
+    else:
+        M[x,y,sl]=int(f[c,1]*255)
+    c+=1

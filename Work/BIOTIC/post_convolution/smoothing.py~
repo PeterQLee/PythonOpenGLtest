@@ -1,0 +1,7 @@
+import numpy as np
+import scipy
+
+
+def gaussian_kernel(M):
+    for i in range(len(M[0,0])):
+        M[:,:,i]=scipy.ndimage.filters.gaussian_filter(M[:,:,i]
